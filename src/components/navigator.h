@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <filesystem>
+#include <unordered_map>
 #include "component.h"
 
 struct Cookie{
@@ -20,8 +21,8 @@ struct Credential{
 class Navigator : public Component {
 public:
     using Component::Component;
-    virtual std::vector<Cookie> getCookies(){return std::vector<Cookie>{};};
-    virtual std::vector<Credential> getCredentials(){return std::vector<Credential>{};};
+    //virtual std::unordered_map<std::filesystem::path, std::vector<Cookie>> getCookies() ;
+    //virtual std::unordered_map<std::filesystem::path, std::vector<Credential>> getCredentials() ;
 protected:
     std::vector<std::filesystem::path> profilesPath{};
 };

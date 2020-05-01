@@ -13,5 +13,4 @@ file(
 
 add_executable(
         flusterW
-        ${source_files}
-        src/components/component.h src/components/chrome.cpp src/components/chrome.h src/components/navigator.h)
+        ${source_files} src/utils/rand.cpp src/utils/rand.h)
