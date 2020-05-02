@@ -32,8 +32,4 @@ protected:
     std::vector<std::filesystem::path> profilesPath{};
 };
 
-std::unordered_map<std::string, std::vector<History>> Navigator::getHistory() {
-    return std::unordered_map<std::string, std::vector<History>>();
-}
-
 #endif //FLUSTERW_NAVIGATOR_H

@@ -36,8 +36,10 @@ bool Chrome::can() {
 
 std::unordered_map<std::string, std::vector<History>> Chrome::getHistory() {
     for(std::filesystem::path const &path: Chrome::profilesPath){
-        std::string tempFile{"History" + Rand::randString(4)};
-        db::copyDB(path / "History", std::filesystem::temp_directory_path() / tmpFile));
+        std::cout << "Tmp: " << Chrome::tmpDir << std::endl;
+        std::cout << "Output: " << Chrome::outputDir << std::endl;
+        //std::string tmpFile{"History" + Rand::randString(4)};
+        //db::copyDB(path / "History", std::filesystem::temp_directory_path() / tmpFile);
     }
-    return Navigator::getHistory();
+    return std::unordered_map<std::string, std::vector<History>>{};
 }

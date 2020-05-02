@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.0)
 project(flusterW)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -13,4 +13,4 @@ file(
 
 add_executable(
         flusterW
-        ${source_files} src/utils/rand.cpp src/utils/rand.h)
+        ${source_files} src/utils/rand.cpp src/utils/rand.h src/components/component.cpp)

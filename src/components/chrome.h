@@ -10,7 +10,7 @@
 class Chrome : public Navigator {
 public:
     using Navigator::Navigator;
-    Chrome::Chrome(){name = "Chrome";}
+    Chrome(){name = "Chrome";}
 
     bool execute() override;
     bool can() override;

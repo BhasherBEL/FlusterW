@@ -7,13 +7,16 @@
 
 #include <string>
 #include <vector>
+#include <filesystem>
+#include "../utils/rand.h"
 
 class Component {
 public:
-    Component() = default;
-    virtual bool can(){return true;};
-    virtual bool execute(){return true;};
+    virtual bool can();
+    virtual bool execute();
     std::string const &getName() const {return name;};
+    static std::filesystem::path const tmpDir;
+    static std::filesystem::path const outputDir;
 protected:
     virtual void log(){};
     std::string name;
