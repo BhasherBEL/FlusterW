@@ -18,13 +18,22 @@ struct Credential{
 
 };
 
+struct History{
+
+};
+
 class Navigator : public Component {
 public:
     using Component::Component;
-    //virtual std::unordered_map<std::filesystem::path, std::vector<Cookie>> getCookies() ;
-    //virtual std::unordered_map<std::filesystem::path, std::vector<Credential>> getCredentials() ;
+    //virtual std::unordered_map<std::string, std::vector<Cookie>> getCookies() ;
+    //virtual std::unordered_map<std::string, std::vector<Credential>> getCredentials() ;
+    virtual std::unordered_map<std::string, std::vector<History>> getHistory();
 protected:
     std::vector<std::filesystem::path> profilesPath{};
 };
+
+std::unordered_map<std::string, std::vector<History>> Navigator::getHistory() {
+    return std::unordered_map<std::string, std::vector<History>>();
+}
 
 #endif //FLUSTERW_NAVIGATOR_H

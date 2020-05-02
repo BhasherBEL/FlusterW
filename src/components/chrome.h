@@ -14,7 +14,7 @@ public:
 
     bool execute() override;
     bool can() override;
-    //std::unordered_map<std::filesystem::path, std::vector<Cookie>> getCookies() override;
+    std::unordered_map<std::string, std::vector<History>> getHistory() override;
 };
 
 

