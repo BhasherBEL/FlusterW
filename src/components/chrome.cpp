@@ -2,12 +2,23 @@
 // Created by Bhasher on 01/05/2020.
 //
 
-#include <iostream>
 #include <filesystem>
 #include <random>
+#include <vector>
 #include "chrome.h"
-#include "../utils/db.h"
 #include "../utils/rand.h"
+
+/**
+ * @brief Search all chrome-based profiles path.
+ * @details Explore a lot of potentials profiles paths and check if it exist and is a valid chrome-based profile path.
+ * Supported navigators are Google Chrome,
+ * @return a vector of profile paths.
+ */
+std::vector<std::string> getProfilesPath(){
+    std::vector<std::string> profilesPath;
+
+    return profilesPath;
+}
 
 /**
  * @brief Execute the *Chrome Component* and extract everything he can from chrome's data.
@@ -37,7 +48,7 @@ bool Chrome::can() {
 std::unordered_map<std::string, std::vector<History>> Chrome::getHistory() {
     for(std::filesystem::path const &path: Chrome::profilesPath){
         std::string tempFile{"History" + Rand::randString(4)};
-        db::copyDB(path / "History", std::filesystem::temp_directory_path() / tmpFile));
+        //db::copyDB(path / "History", std::filesystem::temp_directory_path() / tmpFile));
     }
     return Navigator::getHistory();
 }

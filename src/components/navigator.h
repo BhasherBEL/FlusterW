@@ -15,7 +15,9 @@ struct Cookie{
 };
 
 struct Credential{
-
+    std::string url;
+    std::string user;
+    std::string password;
 };
 
 struct History{
