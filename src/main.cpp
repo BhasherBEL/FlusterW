@@ -1,4 +1,124 @@
 #include <iostream>
+#include <string>
+#include <vector>
+#include <filesystem>
+#include <cassert>
+#include <fstream>
+#include "../contrib/rapidjson/reader.h"
+#include "../contrib/rapidjson/document.h"
+#include "../contrib/rapidjson/istreamwrapper.h"
+
+/**
+ * @brief Find all profiles into a user data path.
+ * @details Search all profiles locations managed in a user data directory.
+ *
+ * @param Chrome user data path.
+ *
+ * @pre chromeUserDataPath must exist
+ *
+ * @return a vector with all profiles locations founded.
+ */
+std::vector<std::string> getProfilesPath(std::string chromeUserDataPath){
+    assert(std::filesystem::exists(chromeUserDataPath) && "chromeUserDataPath doesn't exist");
+
+    std::vector<std::string> profilesPath;
+
+    return profilesPath;
+}
+
+struct Profile{
+
+    std::string name;
+    std::filesystem::path path;
+    double lastUsing;
+    std::string customName;
+    std::string customFullName;
+    std::string customShortcutName;
+    std::string id;
+    std::string pictureName;
+    std::string pictureUrl;
+    std::string officialName;
+    std::string email;
+};
+
+/**
+ * @brief Extract all interesting data from Local State.
+ * @details Extract thoses data:
+ *  - Profiles data.
+ *  - OS encryption key
+ *
+ * @param Chrome user data path.
+ *
+ * @pre chromeUserDataPath must exist
+ * @pre The Local State file must exist
+ *
+ * @todo copy file
+ * @todo scrap plugins
+ *
+ * @return
+ */
+std::tuple<std::vector<Profile>, std::string> extractLocalState(std::string chromeUserDataPath){
+    assert(std::filesystem::exists(chromeUserDataPath) && "chromeUserDataPath doesn't exist");
+    assert(std::filesystem::exists(chromeUserDataPath + "Local State") && "Local State file doesn't exist");
+
+    std::ifstream ifs(chromeUserDataPath + "Local State");
+    rapidjson::IStreamWrapper isw(ifs);
+    rapidjson::Document localState;
+    localState.ParseStream(isw);
+
+    std::vector<Profile> profiles{};
+
+    if(localState.HasMember("profile") && localState["profile"].HasMember("info_cache")){
+        for(auto itr{localState["profile"]["info_cache"].MemberBegin()};itr!=localState["profile"]["info_cache"].MemberEnd();itr++){
+
+            std::string name{itr->name.GetString()};
+            std::filesystem::path path{};
+            //if(itr->value.HasMember("active_time"))
+            double lastUsing{itr->value["active_time"].GetDouble()};
+            std::string customName{itr->value["gaia_given_name"].GetString()};
+            std::string customFullName{itr->value["gaia_name"].GetString()};
+            std::string customShortcutName{itr->value["shortcut_name"].GetString()};
+            std::string id{itr->value["gaia_id"].GetString()};
+            std::string pictureName{itr->value["gaia_picture_file_name"].GetString()};
+            std::string pictureUrl{itr->value["last_downloaded_gaia_picture_url_with_size"].GetString()};
+            std::string officialName{itr->value["name"].GetString()};
+            std::string email{itr->value["user_name"].GetString()};
+
+            profiles.push_back({
+                   name,
+                   path,
+                   lastUsing,
+                   customName,
+                   customFullName,
+                   customShortcutName,
+                   id,
+                   pictureName,
+                   pictureUrl,
+                   officialName,
+                   email
+           });
+
+        }
+    }
+
+    std::string encrypted_key{localState["os_crypt"]["encrypted_key"].GetString()};
+
+    return std::tuple<std::vector<Profile>, std::string>{profiles, encrypted_key};
+
+}
+
+std::string getChromeVersion(std::string chromeUserDataPath){
+    // get it in "Last Version" file.
+    return "";
+}
+
+int main(){
+    auto [profiles, encryption_key] = extractLocalState(std::getenv("LOCALAPPDATA") + std::string(R"(\Google\Chrome\User Data\)"));
+    std::cout << encryption_key << std::endl;
+}
+
+
+/*#include <iostream>
 #include <windows.h>
 #include <dpapi.h>
 #include <filesystem>
@@ -136,3 +256,4 @@ int main() {
 
     return 0;
 }
+*/
