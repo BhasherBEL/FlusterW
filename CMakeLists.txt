@@ -8,14 +8,13 @@ set(CMAKE_CXX_STANDARD 17)
 file(
         GLOB_RECURSE
         source_files
-        #src/*
+        src/*
         contrib/*
 )
 
 add_executable(
         flusterW
         ${source_files}
-        src/main.cpp
 )
 
 #set (Boost_USE_STATIC_LIBS ON)
