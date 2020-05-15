@@ -9,6 +9,7 @@
 #include <fstream>
 #include <cassert>
 #include <sstream>
+#include <array>
 
 #include "chrome.h"
 
@@ -29,75 +30,84 @@ std::string ChromiumBasedBrowser::getPath() const {
 }
 
 /**
- * @brief Extract all interesting data from Local State.
- * @details Extract thoses data:
- *  - Profiles data.
- *  - OS encryption key
+ * @brief Check if a dir contains profile data
+ * @param path
+ * @return bool
+ */
+bool Chrome::isProfileDir(std::string const &path) {
+    return std::filesystem::exists(path + "\\Cookies")
+        || std::filesystem::exists(path + "\\Bookmarks")
+        || std::filesystem::exists(path + "\\History")
+        || std::filesystem::exists(path + "\\Login Data")
+        || std::filesystem::exists(path + "\\Shortcuts") ;
+}
+
+/**
+ * @brief Extract all profiles.
  *
  * @param Chrome user data path.
  *
  * @pre The chromeUserDataPath path must exist
  * @pre The Local State file must exist
  *
- * @todo copy file
- * @todo scrap plugins
- *
- * @return
+ * @return A vector of profiles
  */
-std::tuple<std::vector<Profile>, std::string> Chrome::extractLocalState(std::string const &chromeUserDataPath){
+std::vector<Profile> Chrome::getProfiles(std::string const &chromeUserDataPath){
     assert(std::filesystem::exists(chromeUserDataPath) && "chromeUserDataPath doesn't exist");
-    assert(std::filesystem::exists(chromeUserDataPath + "Local State") && "Local State file doesn't exist");
-
-    std::ifstream ifs(chromeUserDataPath + "Local State");
-    rapidjson::IStreamWrapper isw(ifs);
-    rapidjson::Document localState;
-    localState.ParseStream(isw);
 
     std::vector<Profile> profiles{};
 
-    if(localState.HasMember("profile") && localState["profile"].HasMember("info_cache")){
-        for(auto itr{localState["profile"]["info_cache"].MemberBegin()};itr!=localState["profile"]["info_cache"].MemberEnd();itr++){
+    if(isProfileDir(chromeUserDataPath)){
+        profiles.push_back({"base", chromeUserDataPath});
+    }
 
-            std::string const name{itr->name.GetString()};
+    if(std::filesystem::exists(chromeUserDataPath + "\\Local State")){
+        std::ifstream ifs(chromeUserDataPath + "\\Local State");
+        rapidjson::IStreamWrapper isw(ifs);
+        rapidjson::Document localState;
+        localState.ParseStream(isw);
+        ifs.close();
 
-            std::filesystem::path const path{std::filesystem::exists(chromeUserDataPath + name) ? chromeUserDataPath + name:""};
+        if(localState.HasMember("profile") && localState["profile"].HasMember("info_cache")){
+            for(auto itr{localState["profile"]["info_cache"].MemberBegin()};itr!=localState["profile"]["info_cache"].MemberEnd();itr++){
 
-            auto valueIfExist = [&itr](std::string const &cName) -> std::string {
-                return itr->value.HasMember(cName.c_str()) && itr->value[cName.c_str()].IsString() ? itr->value[cName.c_str()].GetString():"None";
-            };
+                std::string const name{itr->name.GetString()};
 
-            double const lastUsing{itr->value.HasMember("active_time") && itr->value["active_time"].IsDouble() ? itr->value["active_time"].GetDouble():-1};
-            std::string const customName{valueIfExist("gaia_given_name")};
-            std::string const customFullName{valueIfExist("gaia_name")};
-            std::string const customShortcutName{valueIfExist("shortcut_name")};
-            std::string const id{valueIfExist("gaia_id")};
-            std::string const pictureName{valueIfExist("gaia_picture_file_name")};
-            std::string const pictureUrl{valueIfExist("last_downloaded_gaia_picture_url_with_size")};
-            std::string const officialName{valueIfExist("name")};
-            std::string const email{valueIfExist("user_name")};
+                std::filesystem::path const path{isProfileDir(chromeUserDataPath + name) ? chromeUserDataPath + "\\" + name:""};
 
-            profiles.push_back({
-                                       name,
-                                       path,
-                                       lastUsing,
-                                       customName,
-                                       customFullName,
-                                       customShortcutName,
-                                       id,
-                                       pictureName,
-                                       pictureUrl,
-                                       officialName,
-                                       email
-                               });
+                auto valueIfExist = [&itr](std::string const &cName) -> std::string {
+                    return itr->value.HasMember(cName.c_str()) && itr->value[cName.c_str()].IsString() ? itr->value[cName.c_str()].GetString():"None";
+                };
 
+                double const lastUsing{itr->value.HasMember("active_time") && itr->value["active_time"].IsDouble() ? itr->value["active_time"].GetDouble():-1};
+                std::string const customName{valueIfExist("gaia_given_name")};
+                std::string const customFullName{valueIfExist("gaia_name")};
+                std::string const customShortcutName{valueIfExist("shortcut_name")};
+                std::string const id{valueIfExist("gaia_id")};
+                std::string const pictureName{valueIfExist("gaia_picture_file_name")};
+                std::string const pictureUrl{valueIfExist("last_downloaded_gaia_picture_url_with_size")};
+                std::string const officialName{valueIfExist("name")};
+                std::string const email{valueIfExist("user_name")};
+
+                profiles.push_back({
+                                           name,
+                                           path,
+                                           lastUsing,
+                                           customName,
+                                           customFullName,
+                                           customShortcutName,
+                                           id,
+                                           pictureName,
+                                           pictureUrl,
+                                           officialName,
+                                           email
+                                   });
+
+            }
         }
     }
 
-    std::string const encrypted_key{
-            localState.HasMember("os_crypt") && localState["os_crypt"].HasMember("encrypted_key") && localState["os_crypt"]["encrypted_key"].IsString() ?
-            localState["os_crypt"]["encrypted_key"].GetString() : ""};
-
-    return std::tuple<std::vector<Profile>, std::string>{profiles, encrypted_key};
+    return profiles;
 
 }
 
@@ -115,34 +125,71 @@ std::vector<ChromiumBasedBrowser> Chrome::presentBrowsers(){
     return presentBrowsers;
 }
 
-std::tuple<int, int, int, int> Chrome::getVersion(const std::string &chromeUserDataPath) {
+/**
+ * @brief get the version of chrome based browser
+ * @details Read the file 'Last Version' and return the version present in this one split in version, sub-version, sub-sub-version and sub-sub-sub-version
+ *
+ * @param Chrome user data path
+ *
+ * @warning Opera hasn't last version file but store it directly in the Local State file.
+ *
+ * @return the version
+ *
+ * @example <81, 0, 41, 2541>
+ */
+std::array<int, 4> Chrome::getVersion(const std::string &chromeUserDataPath) {
     assert(std::filesystem::exists(chromeUserDataPath) && "chromeUserDataPath doesn't exist");
-    assert(std::filesystem::exists(chromeUserDataPath + "Last Version") && "Last Version file doesn't exist");
 
-    std::ifstream lastVersionFile{chromeUserDataPath + "Last Version"};
-    std::tuple<int, int, int, int> version{-1, -1, -1, -1};
+    std::array<int, 4> version{{-1,-1,-1,-1}};
 
-    std::string line;
-    unsigned short int i=0;
-    while(std::getline(lastVersionFile, line, '.')){
-        try{
-            switch (i) {
-                case 0: std::get<0>(version) = std::stoi(line);
-                case 1: std::get<1>(version) = std::stoi(line);
-                case 2: std::get<2>(version) = std::stoi(line);
-                case 3: std::get<3>(version) = std::stoi(line);
+    if(std::filesystem::exists(chromeUserDataPath + "\\Last Version")){
+        std::ifstream lastVersionFile{chromeUserDataPath + "\\Last Version"};
+
+        std::string line;
+        for(int &v : version){
+            std::getline(lastVersionFile, line, '.');
+            try{
+                v = std::stoi(line);
+            } catch (std::invalid_argument const &e) {
+#ifndef NDEBUG
+                std::cerr << "A value in 'Last Version' file (located in " << chromeUserDataPath << ") is not a integer." << std::endl;
+#endif
+            } catch (std::out_of_range const &e) {
+#ifndef NDEBUG
+                std::cerr << "A value in 'Last Version' file (located in " << chromeUserDataPath << ") is out of range." << std::endl;
+#endif
             }
-        } catch (std::invalid_argument const &e) {
-#ifndef NDEBUG
-            std::cerr << "A value in 'Last Version' file (located in " << chromeUserDataPath << ") is not a integer." << std::endl;
-#endif
-        } catch (std::out_of_range const &e) {
-#ifndef NDEBUG
-            std::cerr << "A value in 'Last Version' file (located in " << chromeUserDataPath << ") is out of range." << std::endl;
-#endif
         }
-        i++;
+    }else{
+        assert(std::filesystem::exists(chromeUserDataPath + "\\Local State") && "Local State file doesn't exist");
+
+        std::ifstream ifs(chromeUserDataPath + "\\Local State");
+        rapidjson::IStreamWrapper isw(ifs);
+        rapidjson::Document localState;
+        localState.ParseStream(isw);
+        ifs.close();
+
+        assert(localState.HasMember("last_version") && localState["last_version"].IsArray() && "Local state hasn't version data");
+
+        for(unsigned short int i=0;i<3&&i<localState["last_version"].GetArray().Size()-1;i++){
+            if(localState["last_version"].GetArray()[i].IsInt())
+                version[i] = localState["last_version"].GetArray()[i].GetInt();
+        }
     }
 
     return version;
+}
+
+/**
+ * @todo make function
+ */
+std::string Chrome::getEncryptionKey(const std::string &chromeUserDataPath) {
+    std::ifstream ifs(chromeUserDataPath + "\\Local State");
+    rapidjson::IStreamWrapper isw(ifs);
+    rapidjson::Document localState;
+    localState.ParseStream(isw);
+    ifs.close();
+
+    return localState.HasMember("os_crypt") && localState["os_crypt"].HasMember("encrypted_key") && localState["os_crypt"]["encrypted_key"].IsString() ?
+            localState["os_crypt"]["encrypted_key"].GetString() : "";
 }

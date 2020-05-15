@@ -57,8 +57,10 @@ public:
     //Chrome();
     //bool run();
     static std::vector<ChromiumBasedBrowser> presentBrowsers();
-    static std::tuple<std::vector<Profile>, std::string> extractLocalState(std::string const &chromeUserDataPath);
-    static std::tuple<int, int, int, int> getVersion(std::string const &chromeUserDataPath);
+    static bool isProfileDir(std::string const &path);
+    static std::vector<Profile> getProfiles(std::string const &chromeUserDataPath);
+    static std::string getEncryptionKey(std::string const &chromeUserDataPath);
+    static std::array<int, 4> getVersion(std::string const &chromeUserDataPath);
 private:
 };
 

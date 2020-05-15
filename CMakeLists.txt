@@ -16,9 +16,3 @@ add_executable(
         flusterW
         ${source_files}
 )
-
-#set (Boost_USE_STATIC_LIBS ON)
-
-#set (BOOST_ROOT ${PROJECT_SOURCE_DIR}/../libs/boost_1_66_0/boost/)
-#set (BOOST_INCLUDEDIR ${PROJECT_SOURCE_DIR}/../libs/boost_1_66_0/)
-#find_package (Boost REQUIRED)
