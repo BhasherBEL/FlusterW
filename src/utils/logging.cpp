@@ -6,10 +6,12 @@
 
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 
 Log::Log(std::string const &path) {
     Log::hasConsole = true;
     Log::hasFile = true;
+    Log::_filename = std::filesystem::path(path).filename().replace_extension().string();
     Log::file = std::ofstream{path};
     if (Log::file.bad() || Log::file.fail()) Log::logDebugC("[ERROR] Log file can't be open.");
 }
@@ -17,6 +19,7 @@ Log::Log(std::string const &path) {
 Log::Log(std::string const &path, bool const console, bool const file){
     Log::hasConsole = console;
     Log::hasFile = file;
+    Log::_filename = std::filesystem::path(path).filename().string();
     Log::file = std::ofstream{path};
     if (Log::file.bad() || Log::file.fail()) Log::logDebugC("[ERROR] Log file can't be open.");
 }
@@ -59,4 +62,9 @@ void Log::logC(const std::string &text) {
 
 void Log::logF(const std::string &text) {
     Log::log(text, false, true);
+}
+
+char Log::endl() {
+    Log::_el = true;
+    return '\n';
 }

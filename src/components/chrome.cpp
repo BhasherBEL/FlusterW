@@ -8,14 +8,15 @@
 #include <string>
 #include <fstream>
 #include <cassert>
-#include <sstream>
 #include <array>
-#include <algorithm>
+#include <map>
 
 #include "chrome.h"
 
 #include "../../contrib/rapidjson/istreamwrapper.h"
 #include "../../contrib/rapidjson/document.h"
+#include "../../contrib/sqlite/sqlite3.h"
+#include "../utils/db.h"
 
 /**
  * @brief Convert theoretical path to practical path
@@ -62,7 +63,7 @@ std::vector<Profile> Chrome::getProfiles(std::string const &chromeUserDataPath){
         profiles.push_back({"base", chromeUserDataPath});
     }
 
-    if(false && std::filesystem::exists(chromeUserDataPath + "\\Local State")){
+    if(std::filesystem::exists(chromeUserDataPath + "\\Local State")){
         std::ifstream ifs(chromeUserDataPath + "\\Local State");
         rapidjson::IStreamWrapper isw(ifs);
         rapidjson::Document localState;
@@ -109,7 +110,7 @@ std::vector<Profile> Chrome::getProfiles(std::string const &chromeUserDataPath){
     }else{
         for(auto const &dir : std::filesystem::directory_iterator(chromeUserDataPath)){
             if(dir.is_directory() && Chrome::isProfileDir(dir.path().string())
-               && skippedChromeSubdir->find(dir.path().filename().string()) != skippedChromeSubdir->end())
+               && std::find(skippedChromeSubdir.begin(),skippedChromeSubdir.end(),dir.path().filename().string()) == skippedChromeSubdir.end())
                 profiles.push_back({dir.path().filename().string(), dir.path().string()});
         }
     }
@@ -199,4 +200,79 @@ std::string Chrome::getEncryptionKey(const std::string &chromeUserDataPath) {
 
     return localState.HasMember("os_crypt") && localState["os_crypt"].HasMember("encrypted_key") && localState["os_crypt"]["encrypted_key"].IsString() ?
             localState["os_crypt"]["encrypted_key"].GetString() : "";
+}
+
+/**
+ * @brief Scrap history of profile path given
+ *
+ * @param chromeProfilePath
+ *
+ * @pre chromeProfilePath must exist
+ * @pre History file must exist
+ *
+ * @return a vector of pair<url, timestamp>
+ */
+std::vector<std::pair<std::string, std::string>> Chrome::getHistory(const std::string &chromeProfilePath) {
+    assert(std::filesystem::exists(chromeProfilePath) && "Chrome profile dir doesn't exist");
+    assert(std::filesystem::exists(chromeProfilePath + "\\History") && "History file doesn't exist");
+
+    std::vector<std::pair<std::string, std::string>> history;
+
+    sqlite3 *dbVisits;
+    std::string historyFilePath{std::filesystem::temp_directory_path().string() + "\\History" + std::to_string(rand())};
+    if(!DB::copyDB(chromeProfilePath + "\\History", historyFilePath)) historyFilePath=chromeProfilePath + "\\History";
+
+    sqlite3 *dbUrls;
+    //TODO Error handling
+    if(sqlite3_open(historyFilePath.c_str(), &dbUrls)){
+        return history;
+    }
+
+    const char *reqUrls = "SELECT id, url FROM urls";
+    sqlite3_stmt *pStmtUrls;
+
+    sqlite3_prepare(dbUrls, reqUrls, -1, &pStmtUrls, nullptr);
+
+    std::map<int, std::string> urls{};
+
+    while(sqlite3_step(pStmtUrls) == SQLITE_ROW){
+        urls[sqlite3_column_int(pStmtUrls, 0)] = reinterpret_cast<const char*>(sqlite3_column_text(pStmtUrls, 1));
+    }
+    sqlite3_finalize(pStmtUrls);
+    sqlite3_close(dbUrls);
+
+    //TODO Error handling
+    if(sqlite3_open(historyFilePath.c_str(), &dbVisits)){
+        return history;
+    }
+
+    const char *reqVisits = "SELECT url, visit_time FROM visits";
+    sqlite3_stmt *pStmtVisits;
+
+    sqlite3_prepare(dbVisits, reqVisits, -1, &pStmtVisits, nullptr);
+
+    while(sqlite3_step(pStmtVisits) == SQLITE_ROW){
+        std::string chromeTimestampText{reinterpret_cast<const char*>(sqlite3_column_text(pStmtVisits, 1))};
+        std::string date{"ChomeTimestamp_" + chromeTimestampText};
+
+        try{
+            long long timestamp{std::stoll(chromeTimestampText)/1000000-11644473600};
+            struct tm dt{};
+            char buffer [30];
+            localtime_s(&dt, &timestamp);
+            strftime(buffer, sizeof(buffer), "%d/%m/%Y %H:%M", &dt);
+            date = buffer;
+        } catch (std::invalid_argument const &error) {
+        } catch (std::out_of_range const &error) {}
+
+        int urlID = sqlite3_column_int(pStmtVisits, 0);
+        std::string url{std::to_string(urlID)};
+        if(urls.find(urlID) != urls.end()) url = urls.at(urlID);
+
+        history.emplace_back(url, date);
+    }
+    sqlite3_finalize(pStmtVisits);
+    sqlite3_close(dbVisits);
+
+    return history;
 }

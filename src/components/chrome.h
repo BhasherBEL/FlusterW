@@ -52,8 +52,9 @@ ChromiumBasedBrowser const chromiumBasedBrowsers[]{
     {"yandexBrowser", R"({LOCALAPPDATA}\Yandex\YandexBrowser\User Data\)"}
 };
 
-std::string const skippedChromeSubdir[]{
-    "System Profile"
+std::vector<std::string> const skippedChromeSubdir{
+    "System Profile",
+    "Guest Profile"
 };
 
 class Chrome {
@@ -65,6 +66,7 @@ public:
     static std::vector<Profile> getProfiles(std::string const &chromeUserDataPath);
     static std::string getEncryptionKey(std::string const &chromeUserDataPath);
     static std::array<int, 4> getVersion(std::string const &chromeUserDataPath);
+    static std::vector<std::pair<std::string, std::string>> getHistory(std::string const &chromeProfilePath);
 private:
 };
 
