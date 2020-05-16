@@ -59,8 +59,7 @@ std::vector<std::string> const skippedChromeSubdir{
 
 class Chrome {
 public:
-    //Chrome();
-    //bool run();
+    static bool run(std::string const &path);
     static std::vector<ChromiumBasedBrowser> presentBrowsers();
     static bool isProfileDir(std::string const &path);
     static std::vector<Profile> getProfiles(std::string const &chromeUserDataPath);

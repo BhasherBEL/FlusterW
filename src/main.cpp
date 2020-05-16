@@ -1,7 +1,6 @@
 #include <iostream>
 #include <array>
 #include <chrono>
-#include <time.h>
 
 #include "components/chrome.h"
 #include "utils/logging.h"
@@ -9,7 +8,9 @@
 int main(){
     srand(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count());
 
-    Log log{"main.log", true, true};
+    std::cout << std::boolalpha << Chrome::run(std::filesystem::temp_directory_path().string() + "\\browsers")  << std::endl;
+
+    /*Log log{"main.log", true, true};
 
     for(ChromiumBasedBrowser const &browser : Chrome::presentBrowsers()){
         std::string const path{browser.getPath()};
@@ -37,5 +38,7 @@ int main(){
             auto const history{Chrome::getHistory(profile.path.string())};
             log << "\t\t\t|--> History: " << history.size() << " entries" << log.endl();
         }
-    }
+    }*/
+
+    return 0;
 }

@@ -17,6 +17,9 @@
 #include "../../contrib/rapidjson/document.h"
 #include "../../contrib/sqlite/sqlite3.h"
 #include "../utils/db.h"
+#include "../utils/logging.h"
+#include "../../contrib/rapidjson/stringbuffer.h"
+#include "../../contrib/rapidjson/writer.h"
 
 /**
  * @brief Convert theoretical path to practical path
@@ -218,41 +221,17 @@ std::vector<std::pair<std::string, std::string>> Chrome::getHistory(const std::s
 
     std::vector<std::pair<std::string, std::string>> history;
 
-    sqlite3 *dbVisits;
     std::string historyFilePath{std::filesystem::temp_directory_path().string() + "\\History" + std::to_string(rand())};
     if(!DB::copyDB(chromeProfilePath + "\\History", historyFilePath)) historyFilePath=chromeProfilePath + "\\History";
 
-    sqlite3 *dbUrls;
-    //TODO Error handling
-    if(sqlite3_open(historyFilePath.c_str(), &dbUrls)){
-        return history;
-    }
-
-    const char *reqUrls = "SELECT id, url FROM urls";
-    sqlite3_stmt *pStmtUrls;
-
-    sqlite3_prepare(dbUrls, reqUrls, -1, &pStmtUrls, nullptr);
-
     std::map<int, std::string> urls{};
 
-    while(sqlite3_step(pStmtUrls) == SQLITE_ROW){
-        urls[sqlite3_column_int(pStmtUrls, 0)] = reinterpret_cast<const char*>(sqlite3_column_text(pStmtUrls, 1));
-    }
-    sqlite3_finalize(pStmtUrls);
-    sqlite3_close(dbUrls);
+    DB::openDB(historyFilePath, "SELECT id, url FROM urls", [&urls](auto &pStmt) -> void {
+        urls[sqlite3_column_int(pStmt, 0)] = reinterpret_cast<const char*>(sqlite3_column_text(pStmt, 1));
+    });
 
-    //TODO Error handling
-    if(sqlite3_open(historyFilePath.c_str(), &dbVisits)){
-        return history;
-    }
-
-    const char *reqVisits = "SELECT url, visit_time FROM visits";
-    sqlite3_stmt *pStmtVisits;
-
-    sqlite3_prepare(dbVisits, reqVisits, -1, &pStmtVisits, nullptr);
-
-    while(sqlite3_step(pStmtVisits) == SQLITE_ROW){
-        std::string chromeTimestampText{reinterpret_cast<const char*>(sqlite3_column_text(pStmtVisits, 1))};
+    DB::openDB(historyFilePath, "SELECT url, visit_time FROM visits", [&urls, &history](auto &pStmt) -> void {
+        std::string chromeTimestampText{reinterpret_cast<const char*>(sqlite3_column_text(pStmt, 1))};
         std::string date{"ChomeTimestamp_" + chromeTimestampText};
 
         try{
@@ -260,19 +239,82 @@ std::vector<std::pair<std::string, std::string>> Chrome::getHistory(const std::s
             struct tm dt{};
             char buffer [30];
             localtime_s(&dt, &timestamp);
-            strftime(buffer, sizeof(buffer), "%d/%m/%Y %H:%M", &dt);
+            strftime(buffer, sizeof(buffer), "%d/%m/%Y %H:%M:%S", &dt);
             date = buffer;
         } catch (std::invalid_argument const &error) {
         } catch (std::out_of_range const &error) {}
 
-        int urlID = sqlite3_column_int(pStmtVisits, 0);
+        int urlID = sqlite3_column_int(pStmt, 0);
         std::string url{std::to_string(urlID)};
         if(urls.find(urlID) != urls.end()) url = urls.at(urlID);
 
         history.emplace_back(url, date);
-    }
-    sqlite3_finalize(pStmtVisits);
-    sqlite3_close(dbVisits);
+    });
 
     return history;
+}
+
+/**
+ * @todo explain
+ */
+bool Chrome::run(std::string const &path) {
+    if(!std::filesystem::exists(path) && !std::filesystem::create_directories(path)) return false;
+
+    Log log{path + "\\ChromeBased.log", false, true};
+
+    rapidjson::StringBuffer s;
+    rapidjson::Writer<rapidjson::StringBuffer> writer{s};
+    writer.StartObject();
+
+    for(ChromiumBasedBrowser const &browser : presentBrowsers()){
+        writer.Key(browser.name); writer.StartObject();
+
+        writer.Key("name"); writer.String(browser.name);
+        std::string version{};
+        for(auto const &el : getVersion(browser.getPath())) if(el > -1) version += "." + std::to_string(el);
+        version.erase(version.begin(), version.begin()+1);
+        writer.Key("version"); writer.String(version.c_str());
+        writer.Key("path"); writer.String(browser.getPath().c_str());
+
+        writer.Key("profiles"); writer.StartObject();
+
+        for(Profile const &profile : Chrome::getProfiles(browser.getPath())){
+            writer.Key(profile.name.c_str()); writer.StartObject();
+            writer.Key("name"); writer.String(profile.name.c_str());
+            writer.Key("path"); writer.String(profile.path.string().c_str());
+            writer.Key("customShortcutName"); writer.String(profile.customShortcutName.c_str());
+            writer.Key("id"); writer.String(profile.id.c_str());
+            writer.Key("pictureName"); writer.String(profile.pictureName.c_str());
+            writer.Key("pictureUrl"); writer.String(profile.pictureUrl.c_str());
+            writer.Key("customFullName"); writer.String(profile.customFullName.c_str());
+            writer.Key("customName"); writer.String(profile.customName.c_str());
+            writer.Key("officialName"); writer.String(profile.officialName.c_str());
+            writer.Key("lastUsing"); writer.Uint((unsigned int)profile.lastUsing);
+            writer.Key("email"); writer.String(profile.email.c_str());
+
+            writer.Key("history"); writer.StartArray();
+            for(auto const &el : Chrome::getHistory(profile.path.string())){
+                writer.StartArray();
+                writer.String(el.first.c_str());
+                writer.String(el.second.c_str());
+                writer.EndArray();
+            }
+            writer.EndArray();
+
+            writer.EndObject();
+        }
+
+        writer.EndObject();
+
+        writer.EndObject();
+
+    }
+
+    writer.EndObject();
+
+    std::ofstream chromeBased{path + "\\ChromeBased.json"};
+    chromeBased << std::string{s.GetString(), s.GetLength()};
+    chromeBased.close();
+
+    return true;
 }

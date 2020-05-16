@@ -6,6 +6,8 @@
 
 #include <filesystem>
 
+#include "../../contrib/sqlite/sqlite3.h"
+
 /**
  *
  * @param source
@@ -23,3 +25,5 @@ bool DB::copyDB(std::filesystem::path const& source, std::filesystem::path const
     }
     return true;
 }
+
+
