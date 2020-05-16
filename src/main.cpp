@@ -3,9 +3,10 @@
 
 #include "components/chrome.h"
 #include "utils/logging.h"
+#include <filesystem>
 
 int main(){
-    Log log{"main.txt", false, true};
+    Log log{"main.txt", true, false};
 
     for(ChromiumBasedBrowser const &browser : Chrome::presentBrowsers()){
         std::string const path{browser.getPath()};

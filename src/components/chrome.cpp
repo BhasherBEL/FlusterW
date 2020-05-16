@@ -10,6 +10,7 @@
 #include <cassert>
 #include <sstream>
 #include <array>
+#include <algorithm>
 
 #include "chrome.h"
 
@@ -61,7 +62,7 @@ std::vector<Profile> Chrome::getProfiles(std::string const &chromeUserDataPath){
         profiles.push_back({"base", chromeUserDataPath});
     }
 
-    if(std::filesystem::exists(chromeUserDataPath + "\\Local State")){
+    if(false && std::filesystem::exists(chromeUserDataPath + "\\Local State")){
         std::ifstream ifs(chromeUserDataPath + "\\Local State");
         rapidjson::IStreamWrapper isw(ifs);
         rapidjson::Document localState;
@@ -104,6 +105,12 @@ std::vector<Profile> Chrome::getProfiles(std::string const &chromeUserDataPath){
                                    });
 
             }
+        }
+    }else{
+        for(auto const &dir : std::filesystem::directory_iterator(chromeUserDataPath)){
+            if(dir.is_directory() && Chrome::isProfileDir(dir.path().string())
+               && skippedChromeSubdir->find(dir.path().filename().string()) != skippedChromeSubdir->end())
+                profiles.push_back({dir.path().filename().string(), dir.path().string()});
         }
     }
 

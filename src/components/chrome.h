@@ -52,6 +52,10 @@ ChromiumBasedBrowser const chromiumBasedBrowsers[]{
     {"yandexBrowser", R"({LOCALAPPDATA}\Yandex\YandexBrowser\User Data\)"}
 };
 
+std::string const skippedChromeSubdir[]{
+    "System Profile"
+};
+
 class Chrome {
 public:
     //Chrome();
