@@ -6,7 +6,6 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <fstream>
 #include <cassert>
 #include <array>
 #include <map>
@@ -16,15 +15,24 @@
 #include "../../contrib/rapidjson/istreamwrapper.h"
 #include "../../contrib/rapidjson/document.h"
 #include "../../contrib/sqlite/sqlite3.h"
-#include "../utils/db.h"
-#include "../utils/logging.h"
 #include "../../contrib/rapidjson/stringbuffer.h"
 #include "../../contrib/rapidjson/writer.h"
+
+#include "../utils/db.h"
+#include "../utils/logging.h"
 
 /**
  * @brief Convert theoretical path to practical path
  * @return the practical path
  */
+std::string ChromiumBasedBrowser::getPath(std::string const &el) const {
+    auto const first{std::string(ChromiumBasedBrowser::location).find('{')+1};
+    auto const last{std::string(ChromiumBasedBrowser::location).find('}')};
+    std::string result{ChromiumBasedBrowser::location};
+    result.replace(first-1, last-first+2, el);
+    return result;
+}
+
 std::string ChromiumBasedBrowser::getPath() const {
     auto const first{std::string(ChromiumBasedBrowser::location).find('{')+1};
     auto const last{std::string(ChromiumBasedBrowser::location).find('}')};
@@ -126,11 +134,37 @@ std::vector<Profile> Chrome::getProfiles(std::string const &chromeUserDataPath){
  * @brief Browse the list of potential browsers and return those who are present
  * @return A vector of existing browsers
  */
-std::vector<ChromiumBasedBrowser> Chrome::presentBrowsers(){
-    std::vector<ChromiumBasedBrowser> presentBrowsers{};
+std::map<std::string, std::vector<ChromiumBasedBrowser>> Chrome::presentBrowsers(){
+    std::map<std::string, std::vector<ChromiumBasedBrowser>> presentBrowsers{};
+
+    std::string username{"Owner"};
+    try{
+        username = std::getenv("USERNAME");
+    } catch (std::exception const &error) {}
+
+    std::vector<ChromiumBasedBrowser> currentUserBrowsers{};
+
     for(ChromiumBasedBrowser const &chromiumBasedBrowser : chromiumBasedBrowsers){
         if(std::filesystem::exists(chromiumBasedBrowser.getPath())){
-            presentBrowsers.push_back(chromiumBasedBrowser);
+            currentUserBrowsers.push_back(chromiumBasedBrowser);
+        }
+    }
+
+    presentBrowsers[username] = currentUserBrowsers;
+
+    if(std::filesystem::exists("C:\\Users")){
+        for(auto const &dir : std::filesystem::directory_iterator("C:\\Users")){
+            std::string localPath{dir.path().string() + R"(\AppData\Local\)"};
+            if(std::filesystem::exists(localPath) && presentBrowsers.find(dir.path().filename().string()) == presentBrowsers.end()){
+                std::string user{dir.path().filename().string()};
+                std::vector<ChromiumBasedBrowser> userBrowsers{};
+                for(ChromiumBasedBrowser const &chromiumBasedBrowser : chromiumBasedBrowsers){
+                    if(std::filesystem::exists(chromiumBasedBrowser.getPath(localPath))){
+                        userBrowsers.push_back(chromiumBasedBrowser);
+                    }
+                }
+                presentBrowsers[user] = userBrowsers;
+            }
         }
     }
     return presentBrowsers;
@@ -266,48 +300,51 @@ bool Chrome::run(std::string const &path) {
     rapidjson::Writer<rapidjson::StringBuffer> writer{s};
     writer.StartObject();
 
-    for(ChromiumBasedBrowser const &browser : presentBrowsers()){
-        writer.Key(browser.name); writer.StartObject();
+    for(auto const &[username, browsers] : presentBrowsers()){
+        writer.Key(username.c_str()); writer.StartObject();
+        for(ChromiumBasedBrowser const &browser : browsers){
+            writer.Key(browser.name); writer.StartObject();
 
-        writer.Key("name"); writer.String(browser.name);
-        std::string version{};
-        for(auto const &el : getVersion(browser.getPath())) if(el > -1) version += "." + std::to_string(el);
-        version.erase(version.begin(), version.begin()+1);
-        writer.Key("version"); writer.String(version.c_str());
-        writer.Key("path"); writer.String(browser.getPath().c_str());
+            writer.Key("name"); writer.String(browser.name);
+            std::string version{};
+            for(auto const &el : getVersion(browser.getPath())) if(el > -1) version += "." + std::to_string(el);
+            version.erase(version.begin(), version.begin()+1);
+            writer.Key("version"); writer.String(version.c_str());
+            writer.Key("path"); writer.String(browser.getPath().c_str());
 
-        writer.Key("profiles"); writer.StartObject();
+            writer.Key("profiles"); writer.StartObject();
 
-        for(Profile const &profile : Chrome::getProfiles(browser.getPath())){
-            writer.Key(profile.name.c_str()); writer.StartObject();
-            writer.Key("name"); writer.String(profile.name.c_str());
-            writer.Key("path"); writer.String(profile.path.string().c_str());
-            writer.Key("customShortcutName"); writer.String(profile.customShortcutName.c_str());
-            writer.Key("id"); writer.String(profile.id.c_str());
-            writer.Key("pictureName"); writer.String(profile.pictureName.c_str());
-            writer.Key("pictureUrl"); writer.String(profile.pictureUrl.c_str());
-            writer.Key("customFullName"); writer.String(profile.customFullName.c_str());
-            writer.Key("customName"); writer.String(profile.customName.c_str());
-            writer.Key("officialName"); writer.String(profile.officialName.c_str());
-            writer.Key("lastUsing"); writer.Uint((unsigned int)profile.lastUsing);
-            writer.Key("email"); writer.String(profile.email.c_str());
+            for(Profile const &profile : Chrome::getProfiles(browser.getPath())){
+                writer.Key(profile.name.c_str()); writer.StartObject();
+                writer.Key("name"); writer.String(profile.name.c_str());
+                writer.Key("path"); writer.String(profile.path.string().c_str());
+                writer.Key("customShortcutName"); writer.String(profile.customShortcutName.c_str());
+                writer.Key("id"); writer.String(profile.id.c_str());
+                writer.Key("pictureName"); writer.String(profile.pictureName.c_str());
+                writer.Key("pictureUrl"); writer.String(profile.pictureUrl.c_str());
+                writer.Key("customFullName"); writer.String(profile.customFullName.c_str());
+                writer.Key("customName"); writer.String(profile.customName.c_str());
+                writer.Key("officialName"); writer.String(profile.officialName.c_str());
+                writer.Key("lastUsing"); writer.Uint((unsigned int)profile.lastUsing);
+                writer.Key("email"); writer.String(profile.email.c_str());
 
-            writer.Key("history"); writer.StartArray();
-            for(auto const &el : Chrome::getHistory(profile.path.string())){
-                writer.StartArray();
-                writer.String(el.first.c_str());
-                writer.String(el.second.c_str());
+                writer.Key("history"); writer.StartArray();
+                for(auto const &el : Chrome::getHistory(profile.path.string())){
+                    writer.StartArray();
+                    writer.String(el.first.c_str());
+                    writer.String(el.second.c_str());
+                    writer.EndArray();
+                }
                 writer.EndArray();
+
+                writer.EndObject();
             }
-            writer.EndArray();
+
+            writer.EndObject();
 
             writer.EndObject();
         }
-
         writer.EndObject();
-
-        writer.EndObject();
-
     }
 
     writer.EndObject();

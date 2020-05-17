@@ -7,6 +7,7 @@
 
 #include <string>
 #include <filesystem>
+#include <map>
 
 struct Profile{
 
@@ -27,6 +28,7 @@ struct ChromiumBasedBrowser{
     const char* name;
     const char* location;
     std::string getPath() const;
+    std::string getPath(std::string const &el) const;
 };
 
 ChromiumBasedBrowser const chromiumBasedBrowsers[]{
@@ -60,7 +62,7 @@ std::vector<std::string> const skippedChromeSubdir{
 class Chrome {
 public:
     static bool run(std::string const &path);
-    static std::vector<ChromiumBasedBrowser> presentBrowsers();
+    static std::map<std::string, std::vector<ChromiumBasedBrowser>> presentBrowsers();
     static bool isProfileDir(std::string const &path);
     static std::vector<Profile> getProfiles(std::string const &chromeUserDataPath);
     static std::string getEncryptionKey(std::string const &chromeUserDataPath);
